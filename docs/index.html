@@ -1,165 +1,332 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <title>CF Practice Elo Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    #controls { margin-bottom: 20px; }
-    input { padding: 5px; font-size: 1em; }
-    button { padding: 5px 10px; font-size: 1em; }
-    #charts { display: flex; flex-wrap: wrap; gap: 20px; }
-    .chart { width: 48%; height: 400px; }
-    #heatmap { width: 100%; height: 450px; }
-  </style>
+<meta charset="UTF-8">
+<title>Codeforces 练习‑Elo 可视化面板</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+<!-- Chart.js & Matrix‑plugin -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"
+        integrity="sha512-79A6UUX+U7AE8ga/2pupElqcEOxs3APZV+Ir1eQTXvsUxN+sAfbU3aRM1h4sjKwtmEEaUPkl2ay2Rnn+o+ddSA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@3.0.0/dist/chartjs-chart-matrix.umd.min.js"></script> <!-- :contentReference[oaicite:0]{index=0} -->
+
+<style>
+:root{
+  --pink: #f9a8d4;
+  --blue: #a5f3fc;
+  --violet:#c4b5fd;
+  --card-bg:rgba(255,255,255,.75);
+  --border-r:18px;
+  --shadow:0 8px 24px rgba(0,0,0,.08);
+  --anime: cubic-bezier(.25,.8,.25,1);
+  font-family: "M PLUS Rounded 1c", "ZCOOL KuaiLe", sans-serif;
+}
+/* 页面渐变背景 + 微粒子星点 */
+body{
+  margin:0;padding:0;
+  background: radial-gradient(circle at 20% 30%, var(--pink), transparent 60%),
+              radial-gradient(circle at 80% 40%, var(--blue), transparent 60%),
+              radial-gradient(circle at 50% 80%, var(--violet), transparent 60%);
+  background-color:#fdfcff;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+main{max-width:1200px;margin:40px auto;padding:0 16px}
+h1{font-weight:700;margin-bottom:12px;letter-spacing:.5px;font-size:2rem}
+.control-box{
+  display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:24px
+}
+input[type=text]{
+  flex:1 1 200px;font-size:1rem;padding:10px 14px;border-radius:var(--border-r);
+  border:2px solid var(--pink);outline:none;transition:.3s var(--anime)
+}
+input[type=text]:focus{border-color:var(--violet);box-shadow:0 0 0 4px #e0e7ff}
+button{
+  background:linear-gradient(90deg,var(--violet),var(--blue));
+  color:#fff;font-size:1rem;font-weight:700;border:none;border-radius:var(--border-r);
+  padding:10px 22px;cursor:pointer;transition:transform .25s var(--anime),box-shadow .25s var(--anime)
+}
+button:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.grid{
+  display:grid;gap:24px;
+  grid-template-columns:repeat(auto-fit,minmax(280px,1fr))
+}
+.card{
+  background:var(--card-bg);
+  backdrop-filter:blur(12px);
+  border-radius:var(--border-r);
+  box-shadow:var(--shadow);
+  padding:16px;position:relative;overflow:hidden
+}
+.card h2{font-size:1.1rem;margin:0 0 10px 0;font-weight:700}
+canvas{width:100%!important;height:320px!important}
+#avatar{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--pink);box-shadow:0 4px 12px rgba(0,0,0,.15)}
+/* rating‑grid 3×3 */
+.grid9{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.grid9 .cell{
+  position:relative;padding:28px 12px;border-radius:var(--border-r);color:#fff;
+  text-align:center;font-weight:700;font-size:1.4rem;user-select:none
+}
+.grid9 .cell small{display:block;font-size:.8rem;margin-top:6px;opacity:.85}
+</style>
 </head>
 <body>
-  <h1>Codeforces Practice Elo 可视化</h1>
-  <div id="controls">
-    <input type="text" id="cfid" placeholder="输入 CF 用户名" />
-    <button onclick="run()">生成图表</button>
-    <span id="status"></span>
+<main>
+  <h1>Codeforces 练习‑Elo 动态面板</h1>
+  <div class="control-box">
+    <input id="handleInput" type="text" placeholder="输入 Codeforces 用户名…">
+    <button id="goBtn">生成图表</button>
+    <img id="avatar" src="" alt="avatar" hidden>
   </div>
-  <div id="charts">
-    <div id="line" class="chart"></div>
-    <div id="heatmap" class="chart"></div>
+
+  <div id="cards" class="grid" hidden>
+    <div class="card"><h2>预测 vs 实际 Rating</h2><canvas id="chartLine"></canvas></div>
+    <div class="card"><h2>30 天 ΔRating 热力图</h2><canvas id="chartHeat"></canvas></div>
+    <div class="card"><h2>30 天每日刷题分段</h2><canvas id="chartBar"></canvas></div>
+    <div class="card"><h2>历史刷题颜色图</h2><div id="grid9" class="grid9"></div></div>
   </div>
+</main>
 
 <script>
-  const K = 275.0, L = 600.0, ALPHA = 0.4725;
-  const BASE_R = 800;
-  const API_BASE = 'https://codeforces.com/api';
-  const tzOffset = new Date().getTimezoneOffset() * 60000;
+// --------- 常量 (与 Python 保持一致) -------------
+const K_FIXED = 275,  L_FIXED = 600,  ALPHA = 0.4525, BASE_RATING = 800;
+// rating -> 图例颜色
+const DIFFICULTY_LEVELS = [
+  ["3000+",       r => r>=3000,          "#800000"],
+  ["2400‑2999",   r => r<3000&&r>=2400,  "#ff0000"],
+  ["2100‑2399",   r => r>=2100,          "#ff8c00"],
+  ["1900‑2099",   r => r>=1900,          "#b000b0"],
+  ["1600‑1899",   r => r>=1600,          "#3250ff"],
+  ["1400‑1599",   r => r>=1400,          "#00b4c8"],
+  ["1200‑1399",   r => r>=1200,          "#00c000"],
+  ["800‑1199",    r => r>=800,           "#808080"],
+  ["unrated",     r => !r,               "#000"]
+];
+const BUCKET9 = [
+  ["(无评级)", r=>r==null,              "#191919"],
+  ["(0‑1199)", r=>r!=null && r<1200,    "#808080"],
+  ["(1200‑1399)", r=>r>=1200 && r<=1399,"#00c000"],
+  ["(1400‑1599)", r=>r>=1400 && r<=1599,"#00b4c8"],
+  ["(1600‑1899)", r=>r>=1600 && r<=1899,"#3250ff"],
+  ["(1900‑2099)", r=>r>=1900 && r<=2099,"#b000b0"],
+  ["(2100‑2399)", r=>r>=2100 && r<=2399,"#ff8c00"],
+  ["(2400‑2999)", r=>r>=2400 && r<=2999,"#ff0000"],
+  ["(3000+)", r=>r>=3000,"#800000"]
+];
 
-  async function getJson(url, params) {
-    const query = new URLSearchParams(params).toString();
-    const res = await fetch(url + '?' + query);
-    if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
-    return await res.json();
+// ---------------- 工具函数 ------------------------
+function fetchJSON(url, params={}){
+  const qs = new URLSearchParams(params).toString();
+  return fetch(`${url}?${qs}`).then(r=>r.json());
+}
+function ts2date(ts){return new Date(ts*1000);}
+function dateKey(d){return d.toISOString().slice(0,10);}  // YYYY‑MM‑DD
+
+// 预测 Elo 轨迹（返回 [{ts,R}, …]）
+function simulate(tasks){
+  let series=[], R=BASE_RATING, i=0;
+  for(const t of tasks){
+    i++;
+    const baseW=Math.pow(i,ALPHA)-Math.pow(i-1,ALPHA);
+    const delta=t.rating-R;
+    const scale=1/(1+Math.exp(-delta/L_FIXED));
+    const expected=1/(1+Math.pow(10,delta/400));
+    R+=K_FIXED*(1-expected)*baseW*scale;
+    series.push({ts:t.ts, R});
   }
+  return series;
+}
 
-  function simulate(tasks) {
-    let R = BASE_R;
-    let series = [];
-    for (let i = 0; i < tasks.length; i++) {
-      const { ts, rating } = tasks[i];
-      const idx = i + 1;
-      const base_w = Math.pow(idx, ALPHA) - Math.pow(idx - 1, ALPHA);
-      const delta = rating - R;
-      const scale = 1 / (1 + Math.exp(-delta / L));
-      const expected = 1 / (1 + Math.pow(10, delta / 400));
-      R += K * (1 - expected) * base_w * scale;
-      series.push({ ts, R });
+// 统计每日难度分布 -> Map(date-> {label:count})
+function dailyDifficulty(submissions){
+  const map=new Map();
+  for(const s of submissions){
+    if(s.verdict!=="OK") continue;
+    const rating=s.problem?.rating??null;
+    const d=dateKey(ts2date(s.creationTimeSeconds));
+    if(!map.has(d)){
+      const obj={}; DIFFICULTY_LEVELS.forEach(l=>obj[l[0]]=0); map.set(d,obj);
     }
-    return series;
+    for(const [name,cond] of DIFFICULTY_LEVELS){
+      if(cond(rating)){ map.get(d)[name]++; break;}
+    }
   }
+  return map;
+}
+// ------------------- 主逻辑 ----------------------
+const handleInput=document.getElementById("handleInput");
+const btn=document.getElementById("goBtn");
+const avatar=document.getElementById("avatar");
+const cards=document.getElementById("cards");
 
-  async function run() {
-    const user = document.getElementById('cfid').value.trim();
-    if (!user) return;
-    document.getElementById('status').textContent = '加载中...';
-    try {
-      // 拉取提交
-      const status = await getJson(API_BASE + '/user.status', { handle: user });
-      const tasksRaw = status.result.filter(s => s.verdict === 'OK' && s.author.participantType !== 'CONTESTANT');
-      const seen = new Map();
-      tasksRaw.forEach(s => {
-        const pid = (s.contestId||s.problem.contestId) + '-' + s.problem.index;
-        if (!seen.has(pid) || s.creationTimeSeconds < seen.get(pid).ts) {
-          seen.set(pid, { ts: s.creationTimeSeconds, rating: s.problem.rating||1500 });
-        }
+let lineChart, heatChart, barChart;
+
+btn.onclick=async ()=>{
+  const handle=handleInput.value.trim();
+  if(!handle) return alert("请输入用户名");
+  btn.disabled=true; btn.innerText="加载中…";
+  try{
+    // 一次并发取三种数据
+    const [st,rt,info] = await Promise.all([
+      fetchJSON("https://codeforces.com/api/user.status",{handle, count:1000000}),
+      fetchJSON("https://codeforces.com/api/user.rating",{handle}),
+      fetchJSON("https://codeforces.com/api/user.info",{handles:handle})
+    ]);
+    if(st.status!=="OK"||rt.status!=="OK"||info.status!=="OK") throw "API 出错";
+
+    const subs=st.result;
+    const contests=rt.result;
+    const user=info.result[0];
+
+    // 头像
+    avatar.src=user.titlePhoto; avatar.hidden=false;
+
+    // -------- 预处理一次数据 ----------
+    // ① 每题首次 AC（按时间升序）
+    const earliest=new Map();
+    for(const sub of subs.slice().reverse()){ // 倒序
+      if(sub.verdict!=="OK") continue;
+      const pid=`${sub.contestId||sub.problem.contestId}-${sub.problem.index}`;
+      if(!earliest.has(pid)) earliest.set(pid,{
+        ts:sub.creationTimeSeconds,
+        rating: typeof sub.problem.rating==="number"?sub.problem.rating:1500
       });
-      const tasks = Array.from(seen.values()).sort((a,b)=>a.ts-b.ts);
+    }
+    const tasks=[...earliest.values()].sort((a,b)=>a.ts-b.ts);
+    // ② 预测曲线
+    const predSeries=simulate(tasks);
+    // ③ Predicted value at contest time
+    const predAtContest=[];
+    let idx=0;
+    for(const c of contests){
+      while(idx+1<predSeries.length && predSeries[idx].ts < c.ratingUpdateTimeSeconds) idx++;
+      predAtContest.push(predSeries[idx].R);
+    }
 
-      // 拉取比赛-history
-      const rating = await getJson(API_BASE + '/user.rating', { handle: user });
-      const contests = rating.result.map(e=>({ ts:e.ratingUpdateTimeSeconds, R:e.newRating }));
-
-      // 仿真
-      const pred = simulate(tasks);
-      // 对齐比赛点
-      let pi = 0; const preds=[];
-      for (const c of contests) {
-        while (pi+1<pred.length && pred[pi].ts < c.ts) pi++;
-        preds.push({ ts:c.ts, R: pred[pi].R });
+    // =========== 图 1：Line ============
+    const dates=contests.map(c=>ts2date(c.ratingUpdateTimeSeconds));
+    const actual=contests.map(c=>c.newRating);
+    if(lineChart) lineChart.destroy();
+    lineChart=new Chart(document.getElementById("chartLine"),{
+      type:"line",
+      data:{
+        labels:dates,
+        datasets:[
+          {label:"Predicted",data:predAtContest,tension:.3,fill:false,
+           borderColor:"#ec4899",pointRadius:0},
+          {label:"Actual",data:actual,tension:.3,fill:false,
+           borderColor:"#6366f1",pointRadius:0}
+        ]
+      },
+      options:{
+        scales:{x:{type:"time",time:{unit:"month"}},y:{beginAtZero:false}},
+        responsive:true,maintainAspectRatio:false
       }
-
-      drawLine(contests, preds);
-      drawHeatmap(pred);
-      document.getElementById('status').textContent = '';
-    } catch(err) {
-      document.getElementById('status').textContent = err;
-      console.error(err);
-    }
-  }
-
-  function drawLine(actual, pred) {
-    const dom = document.getElementById('line');
-    const myChart = echarts.init(dom);
-    const dates = actual.map(a => new Date((a.ts*1000)-tzOffset));
-    const act = actual.map(a=>a.R);
-    const prd = pred.map(p=>p.R);
-    const opt = {
-      title: { text: 'Predicted vs Actual Rating' },
-      tooltip: { trigger:'axis' },
-      xAxis: { type:'time' },
-      yAxis: { type:'value' },
-      series: [
-        { name:'Actual', data: dates.map((d,i)=>[d,act[i]]), type:'line' },
-        { name:'Predicted', data: dates.map((d,i)=>[d,prd[i]]), type:'line' }
-      ]
-    };
-    myChart.setOption(opt);
-  }
-
-  function drawHeatmap(pred) {
-    const dom = document.getElementById('heatmap');
-    const myChart = echarts.init(dom);
-    // 聚合
-    const daily = {};
-    let prev = BASE_R;
-    pred.forEach(p=>{
-      const d = new Date((p.ts*1000)-tzOffset);
-      d.setHours(0,0,0,0);
-      const key = d.toISOString();
-      const delta = p.R - prev;
-      daily[key] = daily[key]||{delta:0,end:0};
-      daily[key].delta += delta;
-      daily[key].end = p.R;
-      prev = p.R;
     });
-    // 最近30天
-    const now = new Date(); now.setHours(0,0,0,0);
-    const data = [];
-    for(let i=29;i>=0;i--) {
-      const d = new Date(now);
-      d.setDate(now.getDate()-i);
-      const key = d.toISOString();
-      const dd = daily[key]||{delta:0,end:null};
-      data.push([d, dd.delta, dd.end]);
+
+    // =========== 图 2：30d ΔRating Heatmap ============
+    const dailyDelta={}, dailyEnd={};
+    let prev=BASE_RATING;
+    for(const p of predSeries){
+      const d=dateKey(ts2date(p.ts));
+      dailyDelta[d]=(dailyDelta[d]||0)+(p.R-prev);
+      dailyEnd[d]=p.R; prev=p.R;
     }
-    // prepare heatmap data
-    const values = data.map((item,i)=>[ Math.floor(i/6), i%6, item[1] ]);
-    const ends   = data.map((item,i)=>[ Math.floor(i/6), i%6, item[2] ]);
-    const max = Math.max(...values.map(v=>Math.abs(v[2])));
-    const opt = {
-      title:{ text:'Last 30 Days Δ & End-R' },
-      tooltip:{ formatter: params => {
-        if(params.seriesName==='Δ') return `+${params.value[2].toFixed(1)}`;
-        if(params.seriesName==='End-R') return `${params.value[2].toFixed(0)}`;
-      }},
-      grid:{ height:'80%', left:'10%', right:'10%' },
-      xAxis:{ type:'category', data:['D-29','D-28','...','D-0'], show:false },
-      yAxis:{ type:'category', data:[], show:false },
-      series:[
-        { name:'Δ', type:'heatmap', data:values, progressive:0, itemStyle:{ borderColor:'#fff' } },
-        { name:'End-R', type:'scatter', data:ends, symbolSize:0, label:{ show:true, formatter: p=>p.value[2]?p.value[2].toFixed(0):'', position:'top', fontSize:10 } }
-      ],
-      visualMap:{ show:false, min:-max, max:max, inRange:{ color:['#d7191c','#fdae61','#ffffbf','#a6d96a','#1a9641'] } }
-    };
-    myChart.setOption(opt);
+    const today=new Date();
+    const heatData=[];
+    for(let i=29;i>=0;i--){
+      const d=new Date(today); d.setDate(today.getDate()-i);
+      const key=dateKey(d);
+      const val=dailyDelta[key]||0, endR=dailyEnd[key]??null;
+      const row=Math.floor((29-i)/6), col=(29-i)%6;
+      heatData.push({x:col,y:row,v:val,end:endR,date:key});
+    }
+    const vmax=Math.max(...heatData.map(h=>Math.abs(h.v)))||1;
+    const ctxH=document.getElementById("chartHeat");
+    if(heatChart) heatChart.destroy();
+    heatChart=new Chart(ctxH,{
+      type:"matrix",
+      data:{
+        datasets:[{
+          label:"ΔRating",
+          data:heatData,
+          width:ctx=> ctx.chart.chartArea.width/6 -4,
+          height:ctx=> ctx.chart.chartArea.height/5 -4,
+          backgroundColor:ctx=>{
+            const v=ctx.raw.v;
+            const t=Math.abs(v)/vmax;
+            return v>=0?`rgba(59,130,246,${0.2+t*0.8})`
+                       :`rgba(244,63,94,${0.2+t*0.8})`;
+          },
+          borderWidth:1,
+          borderColor:"#fff"
+        }]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{
+          tooltip:{callbacks:{
+            title:c=>c[0].raw.date,
+            label:c=>{
+              const {v,end}=c.raw;
+              return [`ΔRating: ${v.toFixed(1)}`,end?`End‑R:${end.toFixed(0)}`:""];
+            }
+          }}
+        },
+        scales:{
+          x:{display:false},y:{display:false},
+        }
+      }
+    });
+
+    // =========== 图 3：30d stacked bar ============
+    const dailyMap=dailyDifficulty(subs);
+    const todayKey=dateKey(today);
+    const keys=[];for(let i=29;i>=0;i--){const d=new Date(today);d.setDate(today.getDate()-i);keys.push(dateKey(d));}
+    const datasets=DIFFICULTY_LEVELS.map(([name,,color])=>({
+      label:name,
+      data:keys.map(k=>dailyMap.get(k)?.[name]||0),
+      backgroundColor:color
+    }));
+    if(barChart) barChart.destroy();
+    barChart=new Chart(document.getElementById("chartBar"),{
+      type:"bar",
+      data:{labels:keys,datasets},
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        scales:{
+          x:{stacked:true,ticks:{callback:(v)=>keys[v].slice(5)}},
+          y:{stacked:true,beginAtZero:true}
+        }
+      }
+    });
+
+    // =========== 图 4：3×3 rating grid ============
+    const counts=Array(9).fill(0);
+    for(const s of subs){
+      if(s.verdict!=="OK") continue;
+      const rating=s.problem?.rating??null;
+      for(let i=0;i<BUCKET9.length;i++){
+        if(BUCKET9[i][1](rating)){counts[i]++;break;}
+      }
+    }
+    const grid9=document.getElementById("grid9");
+    grid9.innerHTML="";
+    BUCKET9.forEach(([label,,color],i)=>{
+      const div=document.createElement("div");
+      div.className="cell";
+      div.style.background=color;
+      div.innerHTML=`${counts[i]}<small>${label}</small>`;
+      grid9.appendChild(div);
+    });
+
+    cards.hidden=false;
   }
+  catch(e){console.error(e);alert("加载失败，请检查用户名或稍后再试。");}
+  finally{btn.disabled=false;btn.innerText="生成图表";}
+};
 </script>
 </body>
 </html>
