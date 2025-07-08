@@ -241,7 +241,7 @@ btn.onclick=async()=>{
 		div.style.background=bgOf(delta);
 		if(Math.abs(delta)>0.6*vmax) div.style.color='#fff';
 
-		const deltaTxt=Math.abs(delta)>=0.05?(delta>=0?'+':'')+delta.toFixed(1):'';
+		const deltaTxt=Math.abs(delta)>=0.01?(delta>=0?'+':'')+delta.toFixed(1):'';
 		const endTxt  =endR!=null?Math.round(endR):'';
 		div.innerHTML =`${deltaTxt}<br>${endTxt}`;
 		div.title     =`${date}\nΔRating: ${delta.toFixed(1)}${endR!=null?`\nEnd-R: ${Math.round(endR)}`:''}`;
