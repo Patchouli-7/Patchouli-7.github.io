@@ -173,7 +173,7 @@ btn.onclick=async()=>{
   btn.disabled=true;btn.textContent="加载中…";
   try{
     const [st,rt,info]=await Promise.all([
-      fetchJSON("https://codeforces.com/api/user.status",{handle,count:10000}),
+      fetchJSON("https://codeforces.com/api/user.status",{handle,count:15000}),
       fetchJSON("https://codeforces.com/api/user.rating",{handle}),
       fetchJSON("https://codeforces.com/api/user.info",{handles:handle})
     ]);
