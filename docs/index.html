@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>CF Practice Elo Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    #controls { margin-bottom: 20px; }
+    input { padding: 5px; font-size: 1em; }
+    button { padding: 5px 10px; font-size: 1em; }
+    #charts { display: flex; flex-wrap: wrap; gap: 20px; }
+    .chart { width: 48%; height: 400px; }
+    #heatmap { width: 100%; height: 450px; }
+  </style>
+</head>
+<body>
+  <h1>Codeforces Practice Elo 可视化</h1>
+  <div id="controls">
+    <input type="text" id="cfid" placeholder="输入 CF 用户名" />
+    <button onclick="run()">生成图表</button>
+    <span id="status"></span>
+  </div>
+  <div id="charts">
+    <div id="line" class="chart"></div>
+    <div id="heatmap" class="chart"></div>
+  </div>
+
+<script>
+  const K = 275.0, L = 600.0, ALPHA = 0.4725;
+  const BASE_R = 800;
+  const API_BASE = 'https://codeforces.com/api';
+  const tzOffset = new Date().getTimezoneOffset() * 60000;
+
+  async function getJson(url, params) {
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(url + '?' + query);
+    if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+    return await res.json();
+  }
+
+  function simulate(tasks) {
+    let R = BASE_R;
+    let series = [];
+    for (let i = 0; i < tasks.length; i++) {
+      const { ts, rating } = tasks[i];
+      const idx = i + 1;
+      const base_w = Math.pow(idx, ALPHA) - Math.pow(idx - 1, ALPHA);
+      const delta = rating - R;
+      const scale = 1 / (1 + Math.exp(-delta / L));
+      const expected = 1 / (1 + Math.pow(10, delta / 400));
+      R += K * (1 - expected) * base_w * scale;
+      series.push({ ts, R });
+    }
+    return series;
+  }
+
+  async function run() {
+    const user = document.getElementById('cfid').value.trim();
+    if (!user) return;
+    document.getElementById('status').textContent = '加载中...';
+    try {
+      // 拉取提交
+      const status = await getJson(API_BASE + '/user.status', { handle: user });
+      const tasksRaw = status.result.filter(s => s.verdict === 'OK' && s.author.participantType !== 'CONTESTANT');
+      const seen = new Map();
+      tasksRaw.forEach(s => {
+        const pid = (s.contestId||s.problem.contestId) + '-' + s.problem.index;
+        if (!seen.has(pid) || s.creationTimeSeconds < seen.get(pid).ts) {
+          seen.set(pid, { ts: s.creationTimeSeconds, rating: s.problem.rating||1500 });
+        }
+      });
+      const tasks = Array.from(seen.values()).sort((a,b)=>a.ts-b.ts);
+
+      // 拉取比赛-history
+      const rating = await getJson(API_BASE + '/user.rating', { handle: user });
+      const contests = rating.result.map(e=>({ ts:e.ratingUpdateTimeSeconds, R:e.newRating }));
+
+      // 仿真
+      const pred = simulate(tasks);
+      // 对齐比赛点
+      let pi = 0; const preds=[];
+      for (const c of contests) {
+        while (pi+1<pred.length && pred[pi].ts < c.ts) pi++;
+        preds.push({ ts:c.ts, R: pred[pi].R });
+      }
+
+      drawLine(contests, preds);
+      drawHeatmap(pred);
+      document.getElementById('status').textContent = '';
+    } catch(err) {
+      document.getElementById('status').textContent = err;
+      console.error(err);
+    }
+  }
+
+  function drawLine(actual, pred) {
+    const dom = document.getElementById('line');
+    const myChart = echarts.init(dom);
+    const dates = actual.map(a => new Date((a.ts*1000)-tzOffset));
+    const act = actual.map(a=>a.R);
+    const prd = pred.map(p=>p.R);
+    const opt = {
+      title: { text: 'Predicted vs Actual Rating' },
+      tooltip: { trigger:'axis' },
+      xAxis: { type:'time' },
+      yAxis: { type:'value' },
+      series: [
+        { name:'Actual', data: dates.map((d,i)=>[d,act[i]]), type:'line' },
+        { name:'Predicted', data: dates.map((d,i)=>[d,prd[i]]), type:'line' }
+      ]
+    };
+    myChart.setOption(opt);
+  }
+
+  function drawHeatmap(pred) {
+    const dom = document.getElementById('heatmap');
+    const myChart = echarts.init(dom);
+    // 聚合
+    const daily = {};
+    let prev = BASE_R;
+    pred.forEach(p=>{
+      const d = new Date((p.ts*1000)-tzOffset);
+      d.setHours(0,0,0,0);
+      const key = d.toISOString();
+      const delta = p.R - prev;
+      daily[key] = daily[key]||{delta:0,end:0};
+      daily[key].delta += delta;
+      daily[key].end = p.R;
+      prev = p.R;
+    });
+    // 最近30天
+    const now = new Date(); now.setHours(0,0,0,0);
+    const data = [];
+    for(let i=29;i>=0;i--) {
+      const d = new Date(now);
+      d.setDate(now.getDate()-i);
+      const key = d.toISOString();
+      const dd = daily[key]||{delta:0,end:null};
+      data.push([d, dd.delta, dd.end]);
+    }
+    // prepare heatmap data
+    const values = data.map((item,i)=>[ Math.floor(i/6), i%6, item[1] ]);
+    const ends   = data.map((item,i)=>[ Math.floor(i/6), i%6, item[2] ]);
+    const max = Math.max(...values.map(v=>Math.abs(v[2])));
+    const opt = {
+      title:{ text:'Last 30 Days Δ & End-R' },
+      tooltip:{ formatter: params => {
+        if(params.seriesName==='Δ') return `+${params.value[2].toFixed(1)}`;
+        if(params.seriesName==='End-R') return `${params.value[2].toFixed(0)}`;
+      }},
+      grid:{ height:'80%', left:'10%', right:'10%' },
+      xAxis:{ type:'category', data:['D-29','D-28','...','D-0'], show:false },
+      yAxis:{ type:'category', data:[], show:false },
+      series:[
+        { name:'Δ', type:'heatmap', data:values, progressive:0, itemStyle:{ borderColor:'#fff' } },
+        { name:'End-R', type:'scatter', data:ends, symbolSize:0, label:{ show:true, formatter: p=>p.value[2]?p.value[2].toFixed(0):'', position:'top', fontSize:10 } }
+      ],
+      visualMap:{ show:false, min:-max, max:max, inRange:{ color:['#d7191c','#fdae61','#ffffbf','#a6d96a','#1a9641'] } }
+    };
+    myChart.setOption(opt);
+  }
+</script>
+</body>
+</html>
