@@ -84,7 +84,7 @@ canvas{inline-size:100%!important;aspect-ratio:16/9;block-size:auto!important}
 </main>
 
 <script>
-const K_FIXED=275,L_FIXED=600,ALPHA=0.4525,BASE_RATING=800;
+const K_FIXED=255,L_FIXED=600,ALPHA=0.4625,BASE_RATING=0;
 const DIFFICULTY_LEVELS=[
   ["3000+",r=>r>=3000,"#800000"],["2400-2999",r=>r<3000&&r>=2400,"#ff0000"],
   ["2100-2399",r=>r>=2100,"#ff8c00"],["1900-2099",r=>r>=1900,"#b000b0"],
@@ -121,16 +121,23 @@ async function fetchJSON(url, params={}, retries=20){
 }
 function ts2d(ts){return new Date(ts*1000)}
 function dkey(d){return d.toISOString().slice(0,10)}
-function simulate(tasks){
-  let R=BASE_RATING,i=0,series=[];
-  for(const t of tasks){
+function simulate(tasks, k = 0.65, p = 3.5) {
+  const N = tasks.length;
+  let R = 800;
+  const series = [];
+  let i = 0;
+
+  for (const t of tasks) {
     i++;
-    const baseW=Math.pow(i,ALPHA)-Math.pow(i-1,ALPHA);
-    const delta=t.rating-R;
-    const scale=1/(1+Math.exp(-delta/L_FIXED));
-    const expected=1/(1+Math.pow(10,delta/400));
-    R+=K_FIXED*(1-expected)*baseW*scale;
-    series.push({ts:t.ts,R});
+    const phi = 1 + k * Math.pow(i / N, p);
+    const mapped = 800 + (t.rating - 800) * phi;
+    const base_w = Math.pow(i, ALPHA) - Math.pow(i - 1, ALPHA);
+    const delta  = mapped - R;
+    const scale  = 1 / (1 + Math.exp(-delta / L_FIXED));
+    const expected = 1 / (1 + Math.pow(10, delta / 400));
+    R += K_FIXED * (1 - expected) * base_w * scale;
+
+    series.push({ ts: t.ts, R });
   }
   return series;
 }
