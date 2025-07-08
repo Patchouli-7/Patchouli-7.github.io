@@ -2,78 +2,71 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>Codeforces 练习‑Elo 可视化面板</title>
+<title>Codeforces 练习可视化面板</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<!-- Google Fonts -->
+
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
-<!-- Chart.js & Matrix‑plugin -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"
-        integrity="sha512-79A6UUX+U7AE8ga/2pupElqcEOxs3APZV+Ir1eQTXvsUxN+sAfbU3aRM1h4sjKwtmEEaUPkl2ay2Rnn+o+ddSA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@3.0.0/dist/chartjs-chart-matrix.umd.min.js"></script> <!-- :contentReference[oaicite:0]{index=0} -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@3"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3"></script>
+
 
 <style>
 :root{
-  --pink: #f9a8d4;
-  --blue: #a5f3fc;
-  --violet:#c4b5fd;
-  --card-bg:rgba(255,255,255,.75);
-  --border-r:18px;
-  --shadow:0 8px 24px rgba(0,0,0,.08);
-  --anime: cubic-bezier(.25,.8,.25,1);
-  font-family: "M PLUS Rounded 1c", "ZCOOL KuaiLe", sans-serif;
+  --pink:#f9a8d4;--blue:#a5f3fc;--violet:#c4b5fd;
+  --card-bg:rgba(255,255,255,.75);--border-r:18px;--shadow:0 8px 24px rgba(0,0,0,.08);
+  font-family:"M PLUS Rounded 1c","ZCOOL KuaiLe",sans-serif;
 }
-/* 页面渐变背景 + 微粒子星点 */
 body{
-  margin:0;padding:0;
-  background: radial-gradient(circle at 20% 30%, var(--pink), transparent 60%),
-              radial-gradient(circle at 80% 40%, var(--blue), transparent 60%),
-              radial-gradient(circle at 50% 80%, var(--violet), transparent 60%);
-  background-color:#fdfcff;
-  min-height:100vh;
-  overflow-x:hidden;
+  margin:0;background:radial-gradient(circle at 20% 30%,var(--pink),transparent 60%),
+                      radial-gradient(circle at 80% 40%,var(--blue),transparent 60%),
+                      radial-gradient(circle at 50% 80%,var(--violet),transparent 60%);
+  background-color:#fdfcff;min-height:100vh;overflow-x:hidden;
 }
 main{max-width:1200px;margin:40px auto;padding:0 16px}
-h1{font-weight:700;margin-bottom:12px;letter-spacing:.5px;font-size:2rem}
-.control-box{
-  display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:24px
-}
-input[type=text]{
-  flex:1 1 200px;font-size:1rem;padding:10px 14px;border-radius:var(--border-r);
-  border:2px solid var(--pink);outline:none;transition:.3s var(--anime)
-}
+h1{font-weight:700;margin-bottom:12px;font-size:2rem}
+.control-box{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:24px}
+input[type=text]{flex:1 1 200px;padding:10px 14px;border:2px solid var(--pink);
+  border-radius:var(--border-r);font-size:1rem;transition:.3s cubic-bezier(.25,.8,.25,1)}
 input[type=text]:focus{border-color:var(--violet);box-shadow:0 0 0 4px #e0e7ff}
-button{
-  background:linear-gradient(90deg,var(--violet),var(--blue));
-  color:#fff;font-size:1rem;font-weight:700;border:none;border-radius:var(--border-r);
-  padding:10px 22px;cursor:pointer;transition:transform .25s var(--anime),box-shadow .25s var(--anime)
-}
+button{background:linear-gradient(90deg,var(--violet),var(--blue));color:#fff;
+  font-weight:700;padding:10px 22px;border:none;border-radius:var(--border-r);
+  cursor:pointer;transition:transform .25s var(--anime),box-shadow .25s var(--anime)}
 button:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
-.grid{
-  display:grid;gap:24px;
-  grid-template-columns:repeat(auto-fit,minmax(280px,1fr))
-}
-.card{
-  background:var(--card-bg);
-  backdrop-filter:blur(12px);
-  border-radius:var(--border-r);
-  box-shadow:var(--shadow);
-  padding:16px;position:relative;overflow:hidden
-}
-.card h2{font-size:1.1rem;margin:0 0 10px 0;font-weight:700}
-canvas{width:100%!important;height:320px!important}
-#avatar{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--pink);box-shadow:0 4px 12px rgba(0,0,0,.15)}
-/* rating‑grid 3×3 */
+#avatar{width:80px;height:80px;border-radius:50%;object-fit:cover;
+  border:3px solid var(--pink);box-shadow:0 4px 12px rgba(0,0,0,.15)}
+/* 🔄 2×2 网格 & 横向画布 */
+.grid{display:grid;grid-template-columns:repeat(2,1fr);grid-auto-rows:1fr;gap:24px}
+.card{background:var(--card-bg);backdrop-filter:blur(12px);border-radius:var(--border-r);
+  box-shadow:var(--shadow);padding:16px;position:relative;overflow:hidden}
+.card h2{font-size:1.1rem;margin:0 0 10px;font-weight:700}
+canvas{inline-size:100%!important;aspect-ratio:16/9;block-size:auto!important}
 .grid9{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.grid9 .cell{
-  position:relative;padding:28px 12px;border-radius:var(--border-r);color:#fff;
-  text-align:center;font-weight:700;font-size:1.4rem;user-select:none
-}
+.grid9 .cell{position:relative;padding:28px 12px;border-radius:var(--border-r);
+  color:#fff;text-align:center;font-weight:700;font-size:1.4rem;user-select:none}
 .grid9 .cell small{display:block;font-size:.8rem;margin-top:6px;opacity:.85}
+.grid30{
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  gap:6px;
+}
+.grid30 .cell{
+  padding:20px 4px;
+  border-radius:12px;
+  font-size:10px;
+  font-weight:700;
+  line-height:1.2;
+  text-align:center;
+  user-select:none;
+  overflow:hidden; 
+}
+
+
 </style>
 </head>
 <body>
 <main>
-  <h1>Codeforces 练习‑Elo 动态面板</h1>
+  <h1>Codeforces 练习可视化面板</h1>
   <div class="control-box">
     <input id="handleInput" type="text" placeholder="输入 Codeforces 用户名…">
     <button id="goBtn">生成图表</button>
@@ -82,50 +75,56 @@ canvas{width:100%!important;height:320px!important}
 
   <div id="cards" class="grid" hidden>
     <div class="card"><h2>预测 vs 实际 Rating</h2><canvas id="chartLine"></canvas></div>
-    <div class="card"><h2>30 天 ΔRating 热力图</h2><canvas id="chartHeat"></canvas></div>
-    <div class="card"><h2>30 天每日刷题分段</h2><canvas id="chartBar"></canvas></div>
+    <div class="card">
+  <h2>30 天 ΔRating 热力图</h2>
+  <div id="heatGrid" class="grid30"></div>
+</div>
+    <div class="card"><h2>30 天每日刷题分段</h2><canvas id="chartBar"></canvas></div>
     <div class="card"><h2>历史刷题颜色图</h2><div id="grid9" class="grid9"></div></div>
   </div>
 </main>
 
 <script>
-// --------- 常量 (与 Python 保持一致) -------------
-const K_FIXED = 275,  L_FIXED = 600,  ALPHA = 0.4525, BASE_RATING = 800;
-// rating -> 图例颜色
-const DIFFICULTY_LEVELS = [
-  ["3000+",       r => r>=3000,          "#800000"],
-  ["2400‑2999",   r => r<3000&&r>=2400,  "#ff0000"],
-  ["2100‑2399",   r => r>=2100,          "#ff8c00"],
-  ["1900‑2099",   r => r>=1900,          "#b000b0"],
-  ["1600‑1899",   r => r>=1600,          "#3250ff"],
-  ["1400‑1599",   r => r>=1400,          "#00b4c8"],
-  ["1200‑1399",   r => r>=1200,          "#00c000"],
-  ["800‑1199",    r => r>=800,           "#808080"],
-  ["unrated",     r => !r,               "#000"]
+// ---------- 常量 ----------
+const K_FIXED=275,L_FIXED=600,ALPHA=0.4525,BASE_RATING=800;
+const DIFFICULTY_LEVELS=[
+  ["3000+",r=>r>=3000,"#800000"],["2400-2999",r=>r<3000&&r>=2400,"#ff0000"],
+  ["2100-2399",r=>r>=2100,"#ff8c00"],["1900-2099",r=>r>=1900,"#b000b0"],
+  ["1600-1899",r=>r>=1600,"#3250ff"],["1400-1599",r=>r>=1400,"#00b4c8"],
+  ["1200-1399",r=>r>=1200,"#00c000"],["800-1199",r=>r>=800,"#808080"],
+  ["unrated",r=>!r,"#000"]
 ];
-const BUCKET9 = [
-  ["(无评级)", r=>r==null,              "#191919"],
-  ["(0‑1199)", r=>r!=null && r<1200,    "#808080"],
-  ["(1200‑1399)", r=>r>=1200 && r<=1399,"#00c000"],
-  ["(1400‑1599)", r=>r>=1400 && r<=1599,"#00b4c8"],
-  ["(1600‑1899)", r=>r>=1600 && r<=1899,"#3250ff"],
-  ["(1900‑2099)", r=>r>=1900 && r<=2099,"#b000b0"],
-  ["(2100‑2399)", r=>r>=2100 && r<=2399,"#ff8c00"],
-  ["(2400‑2999)", r=>r>=2400 && r<=2999,"#ff0000"],
-  ["(3000+)", r=>r>=3000,"#800000"]
+const BUCKET9=[
+  ["(无评级)",r=>r==null,"#191919"],["(0-1199)",r=>r!=null&&r<1200,"#808080"],
+  ["(1200-1399)",r=>r>=1200&&r<=1399,"#00c000"],
+  ["(1400-1599)",r=>r>=1400&&r<=1599,"#00b4c8"],
+  ["(1600-1899)",r=>r>=1600&&r<=1899,"#3250ff"],
+  ["(1900-2099)",r=>r>=1900&&r<=2099,"#b000b0"],
+  ["(2100-2399)",r=>r>=2100&&r<=2399,"#ff8c00"],
+  ["(2400-2999)",r=>r>=2400&&r<=2999,"#ff0000"],
+  ["(3000+)",r=>r>=3000,"#800000"]
 ];
 
-// ---------------- 工具函数 ------------------------
-function fetchJSON(url, params={}){
-  const qs = new URLSearchParams(params).toString();
-  return fetch(`${url}?${qs}`).then(r=>r.json());
+async function fetchJSON(url, params={}, retries=20){
+  const qs=new URLSearchParams(params).toString();
+  for(let i=0;i<retries;i++){
+    try{
+      const resp=await fetch(`${url}?${qs}`);
+      if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data=await resp.json();
+      if(data.status==="OK") return data;
+      throw new Error(data.comment||"CF API FAILED");
+    }catch(err){
+      console.warn(`❗${url.split('/').pop()} attempt ${i+1}/${retries}:`, err.message);
+      if(i===retries-1) throw err;
+      await new Promise(r=>setTimeout(r,400*Math.pow(1.5,i)));
+    }
+  }
 }
-function ts2date(ts){return new Date(ts*1000);}
-function dateKey(d){return d.toISOString().slice(0,10);}  // YYYY‑MM‑DD
-
-// 预测 Elo 轨迹（返回 [{ts,R}, …]）
+function ts2d(ts){return new Date(ts*1000)}
+function dkey(d){return d.toISOString().slice(0,10)}
 function simulate(tasks){
-  let series=[], R=BASE_RATING, i=0;
+  let R=BASE_RATING,i=0,series=[];
   for(const t of tasks){
     i++;
     const baseW=Math.pow(i,ALPHA)-Math.pow(i-1,ALPHA);
@@ -133,198 +132,179 @@ function simulate(tasks){
     const scale=1/(1+Math.exp(-delta/L_FIXED));
     const expected=1/(1+Math.pow(10,delta/400));
     R+=K_FIXED*(1-expected)*baseW*scale;
-    series.push({ts:t.ts, R});
+    series.push({ts:t.ts,R});
   }
   return series;
 }
-
-// 统计每日难度分布 -> Map(date-> {label:count})
-function dailyDifficulty(submissions){
+function dailyDifficulty(subs){
   const map=new Map();
-  for(const s of submissions){
+  for(const s of subs){
     if(s.verdict!=="OK") continue;
     const rating=s.problem?.rating??null;
-    const d=dateKey(ts2date(s.creationTimeSeconds));
-    if(!map.has(d)){
-      const obj={}; DIFFICULTY_LEVELS.forEach(l=>obj[l[0]]=0); map.set(d,obj);
-    }
-    for(const [name,cond] of DIFFICULTY_LEVELS){
-      if(cond(rating)){ map.get(d)[name]++; break;}
-    }
+    const d=dkey(ts2d(s.creationTimeSeconds));
+    if(!map.has(d)){const obj={};DIFFICULTY_LEVELS.forEach(l=>obj[l[0]]=0);map.set(d,obj);}
+    for(const [name,cond] of DIFFICULTY_LEVELS){if(cond(rating)){map.get(d)[name]++;break;}}
   }
   return map;
 }
-// ------------------- 主逻辑 ----------------------
-const handleInput=document.getElementById("handleInput");
-const btn=document.getElementById("goBtn");
-const avatar=document.getElementById("avatar");
-const cards=document.getElementById("cards");
+function dedupEarliestAC(subs){
+  const earliest = new Map();
+  subs.forEach(s=>{
+    if(s.verdict!=="OK") return;
+    const pid = `${s.contestId||s.problem.contestId}-${s.problem.index}`;
+    if(!earliest.has(pid) || s.creationTimeSeconds < earliest.get(pid).creationTimeSeconds){
+      earliest.set(pid, s);
+    }
+  });
+  return [...earliest.values()];
+}
+const handleInput=document.getElementById("handleInput"), btn=document.getElementById("goBtn"),
+      avatar=document.getElementById("avatar"), cards=document.getElementById("cards");
+let lineC,heatC,barC;
 
-let lineChart, heatChart, barChart;
-
-btn.onclick=async ()=>{
+btn.onclick=async()=>{
   const handle=handleInput.value.trim();
   if(!handle) return alert("请输入用户名");
-  btn.disabled=true; btn.innerText="加载中…";
+  btn.disabled=true;btn.textContent="加载中…";
   try{
-    // 一次并发取三种数据
-    const [st,rt,info] = await Promise.all([
-      fetchJSON("https://codeforces.com/api/user.status",{handle, count:1000000}),
+    const [st,rt,info]=await Promise.all([
+      fetchJSON("https://codeforces.com/api/user.status",{handle,count:10000}),
       fetchJSON("https://codeforces.com/api/user.rating",{handle}),
       fetchJSON("https://codeforces.com/api/user.info",{handles:handle})
     ]);
-    if(st.status!=="OK"||rt.status!=="OK"||info.status!=="OK") throw "API 出错";
+    const subs=st.result, contests=rt.result, user=info.result[0];
+    avatar.src=user.titlePhoto;avatar.hidden=false;
 
-    const subs=st.result;
-    const contests=rt.result;
-    const user=info.result[0];
-
-    // 头像
-    avatar.src=user.titlePhoto; avatar.hidden=false;
-
-    // -------- 预处理一次数据 ----------
-    // ① 每题首次 AC（按时间升序）
     const earliest=new Map();
-    for(const sub of subs.slice().reverse()){ // 倒序
+    for(const sub of subs.slice().reverse()){
       if(sub.verdict!=="OK") continue;
       const pid=`${sub.contestId||sub.problem.contestId}-${sub.problem.index}`;
-      if(!earliest.has(pid)) earliest.set(pid,{
-        ts:sub.creationTimeSeconds,
-        rating: typeof sub.problem.rating==="number"?sub.problem.rating:1500
-      });
+      if(!earliest.has(pid))
+        earliest.set(pid,{ts:sub.creationTimeSeconds,rating:typeof sub.problem.rating==="number"?sub.problem.rating:1500});
     }
     const tasks=[...earliest.values()].sort((a,b)=>a.ts-b.ts);
-    // ② 预测曲线
     const predSeries=simulate(tasks);
-    // ③ Predicted value at contest time
-    const predAtContest=[];
-    let idx=0;
+    const predAt=[];let idx=0;
     for(const c of contests){
       while(idx+1<predSeries.length && predSeries[idx].ts < c.ratingUpdateTimeSeconds) idx++;
-      predAtContest.push(predSeries[idx].R);
+      predAt.push(predSeries[idx].R);
     }
-
-    // =========== 图 1：Line ============
-    const dates=contests.map(c=>ts2date(c.ratingUpdateTimeSeconds));
-    const actual=contests.map(c=>c.newRating);
-    if(lineChart) lineChart.destroy();
-    lineChart=new Chart(document.getElementById("chartLine"),{
+	renderHeatGrid(predSeries);
+    const dates=contests.map(c=>ts2d(c.ratingUpdateTimeSeconds)),
+          actual=contests.map(c=>c.newRating);
+    lineC?.destroy();
+    lineC=new Chart(document.getElementById("chartLine"),{
       type:"line",
-      data:{
-        labels:dates,
-        datasets:[
-          {label:"Predicted",data:predAtContest,tension:.3,fill:false,
-           borderColor:"#ec4899",pointRadius:0},
-          {label:"Actual",data:actual,tension:.3,fill:false,
-           borderColor:"#6366f1",pointRadius:0}
-        ]
-      },
-      options:{
-        scales:{x:{type:"time",time:{unit:"month"}},y:{beginAtZero:false}},
-        responsive:true,maintainAspectRatio:false
-      }
+      data:{labels:dates,datasets:[
+        {label:"Predicted",data:predAt,tension:.3,borderColor:"#ec4899",pointRadius:0},
+        {label:"Actual",data:actual,tension:.3,borderColor:"#6366f1",pointRadius:0}
+      ]},
+      options:{responsive:true,scales:{x:{type:"time"},y:{beginAtZero:false}}}
     });
+	function renderHeatGrid(predSeries){
+	  const ts2midnight = ts => { const d=new Date(ts*1000); d.setHours(0,0,0,0); return d; };
+	  const dKey        = d  => d.toISOString().slice(0,10);
 
-    // =========== 图 2：30d ΔRating Heatmap ============
-    const dailyDelta={}, dailyEnd={};
-    let prev=BASE_RATING;
-    for(const p of predSeries){
-      const d=dateKey(ts2date(p.ts));
-      dailyDelta[d]=(dailyDelta[d]||0)+(p.R-prev);
-      dailyEnd[d]=p.R; prev=p.R;
-    }
-    const today=new Date();
-    const heatData=[];
-    for(let i=29;i>=0;i--){
-      const d=new Date(today); d.setDate(today.getDate()-i);
-      const key=dateKey(d);
-      const val=dailyDelta[key]||0, endR=dailyEnd[key]??null;
-      const row=Math.floor((29-i)/6), col=(29-i)%6;
-      heatData.push({x:col,y:row,v:val,end:endR,date:key});
-    }
-    const vmax=Math.max(...heatData.map(h=>Math.abs(h.v)))||1;
-    const ctxH=document.getElementById("chartHeat");
-    if(heatChart) heatChart.destroy();
-    heatChart=new Chart(ctxH,{
-      type:"matrix",
-      data:{
-        datasets:[{
-          label:"ΔRating",
-          data:heatData,
-          width:ctx=> ctx.chart.chartArea.width/6 -4,
-          height:ctx=> ctx.chart.chartArea.height/5 -4,
-          backgroundColor:ctx=>{
-            const v=ctx.raw.v;
-            const t=Math.abs(v)/vmax;
-            return v>=0?`rgba(59,130,246,${0.2+t*0.8})`
-                       :`rgba(244,63,94,${0.2+t*0.8})`;
-          },
-          borderWidth:1,
-          borderColor:"#fff"
-        }]
-      },
-      options:{
-        responsive:true,maintainAspectRatio:false,
-        plugins:{
-          tooltip:{callbacks:{
-            title:c=>c[0].raw.date,
-            label:c=>{
-              const {v,end}=c.raw;
-              return [`ΔRating: ${v.toFixed(1)}`,end?`End‑R:${end.toFixed(0)}`:""];
-            }
-          }}
-        },
-        scales:{
-          x:{display:false},y:{display:false},
-        }
-      }
-    });
+	  const dailyΔ={}, dailyEnd={}, BASE=800;
+	  let prev = BASE;
+	  predSeries.forEach(p=>{
+		const key = dKey(ts2midnight(p.ts));
+		dailyΔ[key]   = (dailyΔ[key]   || 0) + (p.R - prev);
+		dailyEnd[key] =  p.R;
+		prev = p.R;
+	  });
 
-    // =========== 图 3：30d stacked bar ============
-    const dailyMap=dailyDifficulty(subs);
-    const todayKey=dateKey(today);
-    const keys=[];for(let i=29;i>=0;i--){const d=new Date(today);d.setDate(today.getDate()-i);keys.push(dateKey(d));}
-    const datasets=DIFFICULTY_LEVELS.map(([name,,color])=>({
-      label:name,
-      data:keys.map(k=>dailyMap.get(k)?.[name]||0),
-      backgroundColor:color
-    }));
-    if(barChart) barChart.destroy();
-    barChart=new Chart(document.getElementById("chartBar"),{
-      type:"bar",
-      data:{labels:keys,datasets},
-      options:{
-        responsive:true,maintainAspectRatio:false,
-        scales:{
-          x:{stacked:true,ticks:{callback:(v)=>keys[v].slice(5)}},
-          y:{stacked:true,beginAtZero:true}
-        }
-      }
-    });
+	  const today = new Date(); today.setHours(0,0,0,0);
+	  const cells=[];
+	  for(let i=29;i>=0;i--){
+		const d=new Date(today); d.setDate(today.getDate()-i);
+		const k=dKey(d);
+		cells.push({
+		  delta : dailyΔ[k]||0,
+		  endR  : dailyEnd[k]??null,
+		  date  : k
+		});
+	  }
+	  const vmax = Math.max(...cells.map(c=>Math.abs(c.delta)))||1;
 
-    // =========== 图 4：3×3 rating grid ============
+	  const grid=document.getElementById('heatGrid');
+	  grid.innerHTML=''; 
+	  grid.style.gridTemplateColumns='repeat(6,1fr)'; 
+
+	  const bgOf=v=>{
+		const t=Math.abs(v)/vmax, a=0.25+t*0.65;
+		return v>=0?`rgba(59,130,246,${a})`
+				   :`rgba(244,63,94,${a})`;
+	  };
+
+	  cells.forEach(({delta,endR,date})=>{
+		const div=document.createElement('div');
+		div.className='cell';
+		div.style.background=bgOf(delta);
+		if(Math.abs(delta)>0.6*vmax) div.style.color='#fff';
+
+		const deltaTxt=Math.abs(delta)>=0.05?(delta>=0?'+':'')+delta.toFixed(1):'';
+		const endTxt  =endR!=null?Math.round(endR):'';
+		div.innerHTML =`${deltaTxt}<br>${endTxt}`;
+		div.title     =`${date}\nΔRating: ${delta.toFixed(1)}${endR!=null?`\nEnd-R: ${Math.round(endR)}`:''}`;
+
+		grid.appendChild(div);
+	  });
+	}
+
+
+	function dKey(d){ return d.toISOString().slice(0,10); }
+
+	const today = new Date();              
+	today.setHours(0,0,0,0);              
+	const keys = [];
+	for (let i = 29; i >= 0; i--){
+	  const d = new Date(today);
+	  d.setDate(today.getDate() - i);
+	  keys.push(dKey(d));           
+	}
+
+	const uniqSubs = dedupEarliestAC(subs);    
+	const map      = dailyDifficulty(uniqSubs);
+	
+	const dss = DIFFICULTY_LEVELS.map(([name,,color]) => ({
+	  label : name,
+	  data  : keys.map(k => map.get(k)?.[name] || 0),
+	  backgroundColor : color
+	}));
+
+	barC?.destroy();
+	barC = new Chart(document.getElementById("chartBar"),{
+	  type:"bar",
+	  data:{ labels: keys, datasets: dss },
+	  options:{
+		responsive:true,
+		scales:{
+		  x:{ stacked:true,
+			  ticks:{ callback:(v)=>keys[v].slice(5) }},
+		  y:{ stacked:true, beginAtZero:true }
+		}
+	  }
+	});
+
+
     const counts=Array(9).fill(0);
-    for(const s of subs){
-      if(s.verdict!=="OK") continue;
-      const rating=s.problem?.rating??null;
-      for(let i=0;i<BUCKET9.length;i++){
-        if(BUCKET9[i][1](rating)){counts[i]++;break;}
-      }
-    }
-    const grid9=document.getElementById("grid9");
-    grid9.innerHTML="";
-    BUCKET9.forEach(([label,,color],i)=>{
-      const div=document.createElement("div");
-      div.className="cell";
-      div.style.background=color;
-      div.innerHTML=`${counts[i]}<small>${label}</small>`;
-      grid9.appendChild(div);
+    const uniqSubs2 = dedupEarliestAC(subs);
+	for (const s of uniqSubs2){
+	  const rating = s.problem?.rating ?? null;
+	  for(let i=0;i<BUCKET9.length;i++){
+		if(BUCKET9[i][1](rating)){ counts[i]++; break; }
+	  }
+	}
+    const g9=document.getElementById("grid9");g9.innerHTML="";
+    BUCKET9.forEach(([lbl,,color],i)=>{
+      const div=document.createElement("div");div.className="cell";div.style.background=color;
+      div.innerHTML=`${counts[i]}<small>${lbl}</small>`;g9.appendChild(div);
     });
 
     cards.hidden=false;
-  }
-  catch(e){console.error(e);alert("加载失败，请检查用户名或稍后再试。");}
-  finally{btn.disabled=false;btn.innerText="生成图表";}
+  }catch(e){console.error(e);alert("加载失败，请检查用户名或稍后再试。")}
+  finally{btn.disabled=false;btn.textContent="生成图表";}
 };
 </script>
 </body>
