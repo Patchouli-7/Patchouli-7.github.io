@@ -120,7 +120,8 @@ async function fetchJSON(url, params={}, retries=20){
   }
 }
 function ts2d(ts){return new Date(ts*1000)}
-function dkey(d){return d.toISOString().slice(0,10)}
+function dkey(d){const localISO = new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString();
+  return localISO.slice(0, 10);}
 function simulate(tasks, k = 0.65, p = 3.5) {
   const N = tasks.length;
   let R = 800;
